@@ -16,21 +16,22 @@ which in turn is a thin wrapper around Scala's presentation compiler.
 
 ## Prerequisites
 
-* Python3.
-* The `install.sh` script uses `wget` to download the scalavista back-end jars 
-and `pip3` to install the required Python packages.
+* Python3
+* [scalavista-server](https://github.com/buntec/scalavista-server).
 * sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended. 
 
 ## Install 
 
-Clone the [neovim-scalavista](https://github.com/buntec/neovim-scalavista) repo and execute `install.sh`,
-which downloads the server jars and symlinks a launcher into your `/usr/local/bin`. 
+Clone [scalavista-server](https://github.com/buntec/scalavista-server) and run the install script.
 
 ## Usage
 
-Run `scalavista` from the root of your project, ideally with a `scalavista.json` present. 
-A scalavista server will be launched and VSCode will connect to it upon opening any Scala
-source file.
+Start a scalavista-server instance by executing `scalavista` from the root of your project, 
+ideally with a `scalavista.json` present. 
+VSCode will connect to it upon opening any Scala source file.
+
+If you want to work on multiple separate projects at the same time, 
+you can use the `--port` option to run one server per project. 
 
 For an optimal experience use the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin 
 to generate a `scalavista.json` file for your project. This is a simple json file with the following fields:
