@@ -2,8 +2,8 @@
 	"name": "vscode-scalavista",
 	"displayName": "vscode-scalavista",
 	"description": "IDE-like features for Scala",
-    "publisher": "buntec",
-    "license": "SEE LICENSE IN LICENSE",
+	"publisher": "buntec",
+	"license": "SEE LICENSE IN LICENSE",
 	"homepage": "https://github.com/buntec/vscode-scalavista/blob/master/README.md",
 	"repository": {
 		"type": "git",
@@ -21,10 +21,12 @@
 	],
 	"main": "./extension.js",
 	"contributes": {
-		"commands": [{
-			"command": "extension.scalavistaDebugDump",
-			"title": "Dump debug information"
-		}]
+		"commands": [
+			{
+				"command": "extension.scalavistaDebugDump",
+				"title": "Dump debug information"
+			}
+		]
 	},
 	"scripts": {
 		"postinstall": "node ./node_modules/vscode/bin/install",
@@ -36,5 +38,8 @@
 		"eslint": "^4.11.0",
 		"@types/node": "^8.10.25",
 		"@types/mocha": "^2.2.42"
+	},
+	"dependencies": {
+		"axios": "^0.18.0"
 	}
 }
