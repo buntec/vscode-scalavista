@@ -1,7 +1,7 @@
 {
 	"name": "vscode-scalavista",
 	"displayName": "vscode-scalavista",
-	"description": "",
+	"description": "IDE-like features for Scala",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.30.0"
@@ -15,8 +15,8 @@
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
-			"command": "extension.helloWorld",
-			"title": "Hello World"
+			"command": "extension.scalavistaDebugDump",
+			"title": "Dump debug information"
 		}]
 	},
 	"scripts": {

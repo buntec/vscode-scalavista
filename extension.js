@@ -30,16 +30,16 @@ function activate(context) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-scalavista" is now active!');
+	//console.log('Congratulations, your extension "vscode-scalavista" is now active!');
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('extension.helloWorld', function () {
+	let disposable = vscode.commands.registerCommand('extension.scalavistaDebugDump', function () {
 		// The code you place here will be executed every time your command is executed
 
 		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World!');
+		//vscode.window.showInformationMessage('Hello World!');
 		axios.post("http://localhost:9317/log-debug", {})
 	});
 
@@ -48,7 +48,7 @@ function activate(context) {
 	errorRefreshIntervalObj = setInterval(getErrorsAndUpdateDiagnostics, 1000)
 
 	const definitionProvider = {
-		provideDefinition(document, position, token) {
+		provideDefinition(document, position) {
 
 			let filename = document.fileName
 			let fileContents = document.getText()
@@ -71,7 +71,7 @@ function activate(context) {
 	definitionProviderDisposable = vscode.languages.registerDefinitionProvider('scala', definitionProvider)
 
 	const typeHoverProvider = {
-		provideHover(document, position, token) {
+		provideHover(document, position) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
@@ -85,7 +85,7 @@ function activate(context) {
 	typeHoverDisposable = vscode.languages.registerHoverProvider('scala', typeHoverProvider)
 
 	const docHoverProvider = {
-		provideHover(doc, pos, token) {
+		provideHover(doc, pos) {
 			let filename = doc.fileName
 			let fileContents = doc.getText()
 			let offset = doc.offsetAt(pos)
@@ -100,7 +100,7 @@ function activate(context) {
 
 	const typeCompletionProvider = {
 
-		provideCompletionItems(document, position, token, context) {
+		provideCompletionItems(document, position) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
@@ -125,7 +125,7 @@ function activate(context) {
 
 	const scopeCompletionProvider = {
 
-		provideCompletionItems(document, position, token, context) {
+		provideCompletionItems(document, position) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
@@ -156,7 +156,10 @@ function activate(context) {
 				let uri = doc.uri
 				let filepath = uri.fsPath
 				let diagnostics = notes.filter(note => note[0] == filepath).map(note => {
-					let [filename, line, point, start, end, message, kind] = note
+					let start = note[3]
+					let end = note[4]
+					let message = note[5]
+					let kind = note[6]
 					let posStart = doc.positionAt(start)
 					let posEnd = doc.positionAt(end)
 					let range = new vscode.Range(posStart, posEnd)
