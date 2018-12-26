@@ -22,13 +22,15 @@ which in turn is a thin wrapper around Scala's presentation compiler.
 
 ## Install 
 
-Clone [scalavista-server](https://github.com/buntec/scalavista-server) and run the install script.
+* Grab the vsix file from the latest release https://github.com/buntec/vscode-scalavista/releases 
+and [install](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
+* Clone [scalavista-server](https://github.com/buntec/scalavista-server) and run the install script.
 
 ## Usage
 
 Start a scalavista-server instance by executing `scalavista` from the root of your project, 
 ideally with a `scalavista.json` present. 
-VSCode will connect to it upon opening any Scala source file.
+VSCode will start using it upon opening any Scala source file.
 
 If you want to work on multiple separate projects at the same time, 
 you can use the `--port` option to run one server per project. 
