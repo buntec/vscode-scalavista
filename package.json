@@ -2,7 +2,14 @@
 	"name": "vscode-scalavista",
 	"displayName": "vscode-scalavista",
 	"description": "IDE-like features for Scala",
-	"version": "0.0.1",
+    "publisher": "buntec",
+    "license": "SEE LICENSE IN LICENSE",
+	"homepage": "https://github.com/buntec/vscode-scalavista/blob/master/README.md",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/buntec/vscode-scalavista.git"
+	},
+	"version": "0.1.0",
 	"engines": {
 		"vscode": "^1.30.0"
 	},
