@@ -10,12 +10,12 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.helloWorld"
+		"onLanguage:scala"
 	],
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [{
-            "command": "extension.helloWorld",
+			"command": "extension.helloWorld",
 			"title": "Hello World"
 		}]
 	},
