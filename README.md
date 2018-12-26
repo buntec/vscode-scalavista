@@ -1,65 +1,53 @@
-# vscode-scalavista README
+# vscode-scalavista
 
-This is the README for your extension "vscode-scalavista". After writing up a brief description, we recommend including the following sections.
+A Visual Studio Code extension that provides basic IDE-like functionality for the Scala language (2.11.X and 2.12.X):
 
-## Features
+* Show type on hover;
+* Show Scaladoc on hover;
+* Auto-completion;
+* Jump to definition (does not currently work for external dependencies);
+* Linting (compiler errors/warnings are highlighted in your code).
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
+to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
-For example if there is an image subfolder under your extension project workspace:
+The Visual Studio Code extension is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
+which in turn is a thin wrapper around Scala's presentation compiler.
 
-\!\[feature X\]\(images/feature-x.png\)
+## Prerequisites
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+* Python3.
+* The `install.sh` script uses `wget` to download the scalavista back-end jars 
+and `pip3` to install the required Python packages.
+* sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended. 
 
-## Requirements
+## Install 
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Clone the [neovim-scalavista](https://github.com/buntec/neovim-scalavista) repo and execute `install.sh`,
+which downloads the server jars and symlinks a launcher into your `/usr/local/bin`. 
 
-## Extension Settings
+## Usage
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+Run `scalavista` from the root of your project, ideally with a `scalavista.json` present. 
+A scalavista server will be launched and VSCode will connect to it upon opening any Scala
+source file.
 
-For example:
+For an optimal experience use the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin 
+to generate a `scalavista.json` file for your project. This is a simple json file with the following fields:
 
-This extension contributes the following settings:
+1. `classpath` (i.e., your dependencies)
+1. `scalaBinaryVersion` (2.11 or 2.12)
+1. `sources` - a list of your existing Scala source files (don't worry, newly creates files will be picked up on-the-fly)
+1. `scalacOptions` - a list of scalac compiler options
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+You can use scalavista without a `scalavista.json` with the effect that external dependencies are 
+not recognized and marked as errors in your code. The exception are manually managed dependencies in `./lib` which are
+automatically appended to the classpath. You may want to use the `-r` flag to instruct scalavista to look into all
+subdirectories for Scala source files and not just in the current directory (this has no effect in the presence of a
+`scalavista.json`). 
 
-## Known Issues
+Use `--help` to see a list of options.
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Disclaimer
 
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+This project is in alpha stage and should be considered unstable. 
