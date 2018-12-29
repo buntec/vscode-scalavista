@@ -1,5 +1,7 @@
 # vscode-scalavista
 
+![](demo2.gif)
+
 A Visual Studio Code extension that provides basic IDE-like functionality for the Scala language (2.11.X and 2.12.X):
 
 * Show type on hover;
