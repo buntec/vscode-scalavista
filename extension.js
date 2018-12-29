@@ -5,7 +5,7 @@ const axios = require('axios')
 
 let errorRefreshIntervalObj = null
 let typeHoverDisposable = null
-//let docHoverDisposable = null
+let docHoverDisposable = null
 let typeCompletionDisposable = null
 let scopeCompletionDisposable = null
 let definitionProviderDisposable = null
@@ -60,7 +60,10 @@ function activate(context) {
 				if (file == '<no source file>')
 					return null
 				let uri = vscode.Uri.file(file)
-				let pos = document.positionAt(parseInt(response.data.pos))
+				let line = parseInt(response.data.line) - 1
+				let column = parseInt(response.data.column) - 1
+				let pos = new vscode.Position(line, column)
+				//let pos = document.positionAt(parseInt(response.data.pos))
 				return new vscode.Location(uri, pos)
 			})
 
@@ -83,19 +86,19 @@ function activate(context) {
 
 	typeHoverDisposable = vscode.languages.registerHoverProvider('scala', typeHoverProvider)
 
-	//const docHoverProvider = {
-	//	provideHover(doc, pos) {
-	//		let filename = doc.fileName
-	//		let fileContents = doc.getText()
-	//		let offset = doc.offsetAt(pos)
-	//		let payload = { filename, fileContents, offset }
-	//		return axios.post(SERVER_URL + '/ask-doc-at', payload).then(response => {
-	//			return new vscode.Hover(response.data)
-	//		})
-	//	}
-	//}
+	const docHoverProvider = {
+		provideHover(doc, pos) {
+			let filename = doc.fileName
+			let fileContents = doc.getText()
+			let offset = doc.offsetAt(pos)
+			let payload = { filename, fileContents, offset }
+			return axios.post(SERVER_URL + '/ask-doc-at', payload).then(response => {
+				return new vscode.Hover(response.data)
+			})
+		}
+	}
 
-	//docHoverDisposable = vscode.languages.registerHoverProvider('scala', docHoverProvider)
+	docHoverDisposable = vscode.languages.registerHoverProvider('scala', docHoverProvider)
 
 	const typeCompletionProvider = {
 
@@ -198,7 +201,7 @@ exports.activate = activate;
 // this method is called when your extension is deactivated
 function deactivate() {
 	typeHoverDisposable.dispose()
-	//docHoverDisposable.dispose()
+	docHoverDisposable.dispose()
 	typeCompletionDisposable.dispose()
 	scopeCompletionDisposable.dispose()
 	definitionProviderDisposable.dispose()
