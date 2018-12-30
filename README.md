@@ -2,7 +2,7 @@
 
 ![](demo2.gif)
 
-A Visual Studio Code extension that provides basic IDE-like functionality for the Scala language (2.11.X and 2.12.X):
+A Visual Studio Code extension that provides basic IDE-like functionality for the Scala language (2.11 and 2.12):
 
 * Show type on hover;
 * Show Scaladoc on hover;
@@ -13,19 +13,18 @@ A Visual Studio Code extension that provides basic IDE-like functionality for th
 scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
 to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
-The Visual Studio Code extension is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
+The VSCode extension is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
 which in turn is a thin wrapper around Scala's presentation compiler.
 
 ## Prerequisites
 
-* Python3
+* Python 3
 * [scalavista-server](https://github.com/buntec/scalavista-server).
 * sbt and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended. 
 
 ## Install 
 
-* Grab the vsix file from the latest release https://github.com/buntec/vscode-scalavista/releases 
-and [install](https://code.visualstudio.com/docs/editor/extension-gallery#_install-from-a-vsix).
+* Install extension from Marketplace.
 * Clone [scalavista-server](https://github.com/buntec/scalavista-server) and run the install script.
 
 ## Usage

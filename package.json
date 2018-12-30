@@ -1,9 +1,14 @@
 {
 	"name": "vscode-scalavista",
-	"displayName": "vscode-scalavista",
-	"description": "IDE-like features for Scala",
+	"displayName": "Scalavista",
+	"description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings",
+    "categories": ["Programming Languages", "Linters", "Other"],
 	"publisher": "buntec",
+    "author": {
+        "name": "Christoph Bunte"
+    },
 	"license": "SEE LICENSE IN LICENSE",
+    "icon": "scala-spiral.png",
 	"homepage": "https://github.com/buntec/vscode-scalavista/blob/master/README.md",
 	"repository": {
 		"type": "git",
@@ -24,7 +29,7 @@
 		"commands": [
 			{
 				"command": "extension.scalavistaDebugDump",
-				"title": "Dump debug information"
+				"title": "Dump scalavista debug information"
 			}
 		]
 	},
