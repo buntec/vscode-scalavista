@@ -1,9 +1,14 @@
 {
   "name": "vscode-scalavista",
   "displayName": "Scalavista",
-  "description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings",
+  "description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings as you type",
   "categories": [
+    "Programming Languages",
+    "Linters",
     "Other"
+  ],
+  "keywords": [
+    "scala"
   ],
   "publisher": "buntec",
   "author": {
@@ -16,7 +21,7 @@
     "type": "git",
     "url": "https://github.com/buntec/vscode-scalavista.git"
   },
-  "version": "0.1.4",
+  "version": "0.1.5",
   "engines": {
     "vscode": "^1.30.0"
   },
