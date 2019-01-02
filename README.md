@@ -10,7 +10,7 @@ A Visual Studio Code extension that provides basic IDE-like functionality for th
 * Jump to definition (does not currently work for external dependencies);
 * Linting (compiler errors/warnings show up as you type).
 
-scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
+Scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
 to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
 
 The VSCode extension is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
