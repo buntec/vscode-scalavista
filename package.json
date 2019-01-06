@@ -21,7 +21,7 @@
     "type": "git",
     "url": "https://github.com/buntec/vscode-scalavista.git"
   },
-  "version": "0.1.6",
+  "version": "0.1.7",
   "engines": {
     "vscode": "^1.30.0"
   },
@@ -30,12 +30,26 @@
   ],
   "main": "./extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "extension.scalavistaDebugDump",
-        "title": "Dump scalavista debug information"
+    "configuration": {
+      "type": "object",
+      "title": "Scalavista configuration",
+      "properties": {
+        "Scalavista.port": {
+          "type": "number",
+          "default": 9317,
+          "description": "server port number"
+        },
+        "Scalavista.diagnosticsRefreshPeriod": {
+          "type": "number",
+          "default": 1000,
+          "description": "time in ms between refreshes of the diagnostics (increase this if you are on a slow machine)"
+        }
       }
-    ]
+    },
+    "commands": [{
+      "command": "extension.scalavistaDebugDump",
+      "title": "Dump scalavista debug information"
+    }]
   },
   "scripts": {
     "postinstall": "node ./node_modules/vscode/bin/install",

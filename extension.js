@@ -9,6 +9,8 @@ let docHoverDisposable = null
 let typeCompletionDisposable = null
 let scopeCompletionDisposable = null
 let definitionProviderDisposable = null
+let port = 0
+let notes = null
 
 function completionKindFromDetail(detail) {
 	const isDef = /\bdef\b/.test(detail)
@@ -16,11 +18,13 @@ function completionKindFromDetail(detail) {
 	const isClass = /\b(class|object)\b/.test(detail)
 	return isDef ? vscode.CompletionItemKind.Method :
 		isVal ? vscode.CompletionItemKind.Field :
-			isClass ? vscode.CompletionItemKind.Class :
-				vscode.CompletionItemKind.Text
+		isClass ? vscode.CompletionItemKind.Class :
+		vscode.CompletionItemKind.Text
 }
 
-const SERVER_URL = 'http://localhost:9317'
+function serverUrl() {
+	return 'http://localhost:' + port
+}
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -29,6 +33,9 @@ const SERVER_URL = 'http://localhost:9317'
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+
+	port = vscode.workspace.getConfiguration('Scalavista').get('port')
+	const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -42,7 +49,7 @@ function activate(context) {
 
 		// Display a message box to the user
 		//vscode.window.showInformationMessage('Hello World!');
-		axios.post(SERVER_URL + '/log-debug', {})
+		axios.post(serverUrl() + '/log-debug', {})
 	});
 
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection("scalavista")
@@ -54,8 +61,12 @@ function activate(context) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
-			let payload = { filename, fileContents, offset }
-			return axios.post(SERVER_URL + '/ask-pos-at', payload).then(response => {
+			let payload = {
+				filename,
+				fileContents,
+				offset
+			}
+			return axios.post(serverUrl() + '/ask-pos-at', payload).then(response => {
 				let file = response.data.file
 				if (file == '<no source file>')
 					return null
@@ -77,8 +88,12 @@ function activate(context) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
-			let payload = { filename, fileContents, offset }
-			return axios.post(SERVER_URL + '/ask-type-at', payload).then(response => {
+			let payload = {
+				filename,
+				fileContents,
+				offset
+			}
+			return axios.post(serverUrl() + '/ask-type-at', payload).then(response => {
 				return new vscode.Hover(response.data)
 			})
 		}
@@ -91,8 +106,12 @@ function activate(context) {
 			let filename = doc.fileName
 			let fileContents = doc.getText()
 			let offset = doc.offsetAt(pos)
-			let payload = { filename, fileContents, offset }
-			return axios.post(SERVER_URL + '/ask-doc-at', payload).then(response => {
+			let payload = {
+				filename,
+				fileContents,
+				offset
+			}
+			return axios.post(serverUrl() + '/ask-doc-at', payload).then(response => {
 				return new vscode.Hover(response.data)
 			})
 		}
@@ -106,8 +125,12 @@ function activate(context) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
-			let payload = { filename, fileContents, offset }
-			return axios.post(SERVER_URL + '/type-completion', payload).then(response => {
+			let payload = {
+				filename,
+				fileContents,
+				offset
+			}
+			return axios.post(serverUrl() + '/type-completion', payload).then(response => {
 				let completionItems = response.data.map(comp => {
 					const label = comp[0]
 					const detail = comp[1]
@@ -129,8 +152,12 @@ function activate(context) {
 			let filename = document.fileName
 			let fileContents = document.getText()
 			let offset = document.offsetAt(position)
-			let payload = { filename, fileContents, offset }
-			return axios.post(SERVER_URL + '/scope-completion', payload).then(response => {
+			let payload = {
+				filename,
+				fileContents,
+				offset
+			}
+			return axios.post(serverUrl() + '/scope-completion', payload).then(response => {
 				let completionItems = response.data.map(comp => {
 					let label = comp[0]
 					let detail = comp[1]
@@ -146,52 +173,60 @@ function activate(context) {
 
 	scopeCompletionDisposable = vscode.languages.registerCompletionItemProvider('scala', scopeCompletionProvider)
 
-	errorRefreshIntervalObj = setInterval(getErrorsAndUpdateDiagnostics, 500)
+	errorRefreshIntervalObj = setInterval(getErrorsAndUpdateDiagnostics, refreshPeriod)
 
 	function getErrorsAndUpdateDiagnostics() {
 
-		return axios.get(SERVER_URL + '/errors').then(response => {
-			let notes = response.data
+		return axios.get(serverUrl() + '/errors').then(response => {
+			if (JSON.stringify(response.data) === JSON.stringify(notes)) {
+				return // skip if errors don't change
+			}
+			notes = response.data
 			diagnosticCollection.clear()
 			vscode.workspace.textDocuments.filter(doc => doc.languageId == 'scala').forEach(doc => {
 				let uri = doc.uri
 				let filepath = uri.fsPath
-				let diagnostics = notes.filter(note => note[0] == filepath).map(note => {
-					let start = note[3]
-					let end = note[4]
-					let message = note[5]
-					let kind = note[6]
-					let posStart = doc.positionAt(start)
-					let posEnd = doc.positionAt(end)
-					let range = new vscode.Range(posStart, posEnd)
-					let severity = null;
-					switch (kind) {
-						case 'ERROR':
-							severity = vscode.DiagnosticSeverity.Error
-							break;
-						case 'WARNING':
-							severity = vscode.DiagnosticSeverity.Warning
-							break;
-						case 'WARN':
-							severity = vscode.DiagnosticSeverity.Warning
-							break;
-						case 'INFO':
-							severity = vscode.DiagnosticSeverity.Information
-							break;
-					}
-					return new vscode.Diagnostic(range, message, severity)
-				}
-				)
+				let diagnostics = notes.filter(note => note[0].toLowerCase() == filepath.toLowerCase())
+					.map(note => {
+						let start = note[3]
+						let end = note[4]
+						let message = note[5]
+						let kind = note[6]
+						let posStart = doc.positionAt(start)
+						let posEnd = doc.positionAt(end)
+						let range = new vscode.Range(posStart, posEnd)
+						let severity = vscode.DiagnosticSeverity.Hint
+						switch (kind) {
+							case 'ERROR':
+								severity = vscode.DiagnosticSeverity.Error
+								break;
+							case 'WARNING':
+								severity = vscode.DiagnosticSeverity.Warning
+								break;
+							case 'WARN':
+								severity = vscode.DiagnosticSeverity.Warning
+								break;
+							case 'INFO':
+								severity = vscode.DiagnosticSeverity.Information
+								break;
+						}
+						return new vscode.Diagnostic(range, message, severity)
+					})
 				diagnosticCollection.set(uri, diagnostics)
 			})
-		}).catch(() => { })
+		}).catch(() => {})
 	}
 
 	vscode.workspace.onDidChangeTextDocument(event => {
+		if (event.document.languageId != 'scala')
+			return
 		let filename = event.document.fileName
 		let fileContents = event.document.getText()
-		let payload = { filename, fileContents }
-		axios.post(SERVER_URL + '/reload-file', payload)
+		let payload = {
+			filename,
+			fileContents
+		}
+		axios.post(serverUrl() + '/reload-file', payload)
 	})
 
 	context.subscriptions.push(disposable);
