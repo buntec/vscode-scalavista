@@ -4,6 +4,7 @@ const vscode = require('vscode');
 const axios = require('axios')
 
 let errorRefreshIntervalObj = null
+let checkServerIntervalObj = null
 let typeHoverDisposable = null
 let docHoverDisposable = null
 let typeCompletionDisposable = null
@@ -11,6 +12,7 @@ let scopeCompletionDisposable = null
 let definitionProviderDisposable = null
 let port = 0
 let notes = null
+let statusBarItem = null
 
 function completionKindFromDetail(detail) {
 	const isDef = /\bdef\b/.test(detail)
@@ -173,6 +175,20 @@ function activate(context) {
 
 	scopeCompletionDisposable = vscode.languages.registerCompletionItemProvider('scala', scopeCompletionProvider)
 
+	statusBarItem = vscode.window.createStatusBarItem()
+	statusBarItem.text = "Scalavista extension activated"
+	statusBarItem.show()
+
+	function checkServerAlive() {
+		axios.get(serverUrl() + '/alive').then(() => {
+			statusBarItem.text = 'Scalavista server live @ ' + serverUrl()
+		}).catch(() => {
+			statusBarItem.text = 'Scalavista server appears down'
+		})
+	}
+
+	checkServerIntervalObj = setInterval(checkServerAlive, 1000)
+
 	errorRefreshIntervalObj = setInterval(getErrorsAndUpdateDiagnostics, refreshPeriod)
 
 	function getErrorsAndUpdateDiagnostics() {
@@ -241,6 +257,8 @@ function deactivate() {
 	scopeCompletionDisposable.dispose()
 	definitionProviderDisposable.dispose()
 	clearInterval(errorRefreshIntervalObj)
+	clearInterval(checkServerIntervalObj)
+	statusBarItem.dispose()
 }
 
 module.exports = {
