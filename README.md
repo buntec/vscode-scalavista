@@ -11,7 +11,7 @@ A Visual Studio Code extension that provides basic IDE-like functionality for th
 * Linting (compiler errors/warnings show up as you type).
 
 Scalavista is not as feature-complete as [ENSIME](https://github.com/ensime) but instead aims 
-to be minimalistic and lightweight. (In particular, it does not work for Java sources.)
+to be minimalistic and lightweight.
 
 The VSCode extension is a front-end to the [scalavista](https://github.com/buntec/scalavista) language-server, 
 which in turn is a thin wrapper around Scala's presentation compiler.
@@ -28,8 +28,8 @@ are recommended.
 
 ## Usage
 
-See [scalavista-server](https://github.com/buntec/scalavista-server) on how to install and launch scalavista-server.
-Once a server is running, VSCode will connect to it upon opening any Scala source file.
+See [scalavista-server](https://github.com/buntec/scalavista-server) on how to set up and launch scalavista-server.
+Once a server is running, the VSCode extension will connect to it upon opening any Scala source file.
 
 ## Disclaimer
 
