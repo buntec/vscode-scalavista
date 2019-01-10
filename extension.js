@@ -199,42 +199,43 @@ function activate(context) {
 			}
 			notes = response.data
 			diagnosticCollection.clear()
-			vscode.workspace.textDocuments.filter(doc => doc.languageId == 'scala').forEach(doc => {
-				let uri = doc.uri
-				let filepath = uri.fsPath
-				let diagnostics = notes.filter(note => note[0].toLowerCase() == filepath.toLowerCase())
-					.map(note => {
-						let start = note[3]
-						let end = note[4]
-						let message = note[5]
-						let kind = note[6]
-						let posStart = doc.positionAt(start)
-						let posEnd = doc.positionAt(end)
-						let range = new vscode.Range(posStart, posEnd)
-						let severity = vscode.DiagnosticSeverity.Hint
-						switch (kind) {
-							case 'ERROR':
-								severity = vscode.DiagnosticSeverity.Error
-								break;
-							case 'WARNING':
-								severity = vscode.DiagnosticSeverity.Warning
-								break;
-							case 'WARN':
-								severity = vscode.DiagnosticSeverity.Warning
-								break;
-							case 'INFO':
-								severity = vscode.DiagnosticSeverity.Information
-								break;
-						}
-						return new vscode.Diagnostic(range, message, severity)
-					})
-				diagnosticCollection.set(uri, diagnostics)
-			})
+			vscode.workspace.textDocuments.filter(doc => (doc.languageId == 'scala') || (doc.languageId == 'java'))
+				.forEach(doc => {
+					let uri = doc.uri
+					let filepath = uri.fsPath
+					let diagnostics = notes.filter(note => note[0].toLowerCase() == filepath.toLowerCase())
+						.map(note => {
+							let start = note[3]
+							let end = note[4]
+							let message = note[5]
+							let kind = note[6]
+							let posStart = doc.positionAt(start)
+							let posEnd = doc.positionAt(end)
+							let range = new vscode.Range(posStart, posEnd)
+							let severity = vscode.DiagnosticSeverity.Hint
+							switch (kind) {
+								case 'ERROR':
+									severity = vscode.DiagnosticSeverity.Error
+									break;
+								case 'WARNING':
+									severity = vscode.DiagnosticSeverity.Warning
+									break;
+								case 'WARN':
+									severity = vscode.DiagnosticSeverity.Warning
+									break;
+								case 'INFO':
+									severity = vscode.DiagnosticSeverity.Information
+									break;
+							}
+							return new vscode.Diagnostic(range, message, severity)
+						})
+					diagnosticCollection.set(uri, diagnostics)
+				})
 		}).catch(() => {})
 	}
 
 	vscode.workspace.onDidChangeTextDocument(event => {
-		if (event.document.languageId != 'scala')
+		if ((event.document.languageId != 'scala') && (event.document.languageId != 'java'))
 			return
 		let filename = event.document.fileName
 		let fileContents = event.document.getText()
