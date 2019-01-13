@@ -13,6 +13,29 @@ let definitionProviderDisposable = null
 let port = 0
 let notes = null
 let statusBarItem = null
+let latestServerVersion = null
+
+function serverIsOutdated(version) {
+	try {
+		let [major, minor, patch] = version.split('.')
+		let [majorLatest, minorLatest, patchLatest] = latestServerVersion.split('.')
+		if (parseInt(majorLatest) > parseInt(major))
+			return true
+		if (parseInt(minorLatest) > parseInt(minor))
+			return true
+		if (parseInt(patchLatest) > parseInt(patch))
+			return true
+	} catch (error) {}
+	return false
+}
+
+function checkForLatestServerVersion() {
+	axios.get('https://api.github.com/repos/buntec/scalavista-server/releases').then(response => {
+		let releases = response.data
+		let latestRelease = releases[0]['tag_name']
+		latestServerVersion = latestRelease.substring(1)
+	}).catch(() => {})
+}
 
 function completionKindFromDetail(detail) {
 	const isDef = /\bdef\b/.test(detail)
@@ -35,6 +58,8 @@ function serverUrl() {
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+
+	checkForLatestServerVersion()
 
 	port = vscode.workspace.getConfiguration('Scalavista').get('port')
 	const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
@@ -180,11 +205,27 @@ function activate(context) {
 	statusBarItem.show()
 
 	function checkServerAlive() {
-		axios.get(serverUrl() + '/alive').then(() => {
-			statusBarItem.text = 'Scalavista server live @ ' + serverUrl()
-		}).catch(() => {
-			statusBarItem.text = 'Scalavista server appears down'
-		})
+		const releaseUrl = 'https://github.com/buntec/scalavista-server/releases'
+		axios.get(serverUrl() + '/version')
+			.then(response => {
+				let serverVersion = response.data
+				if (serverIsOutdated(serverVersion)) {
+					statusBarItem.text = `Your version of scalavista-server (${serverVersion}) is outdated - please update to ${latestServerVersion}.`
+					statusBarItem.tooltip = `Download the most recent version here: ${releaseUrl}`
+				} else {
+					statusBarItem.text = `Scalavista server ${serverVersion} live @ ${serverUrl()}`
+					statusBarItem.tooltip = ''
+				}
+			})
+			.catch(() => axios.get(serverUrl() + '/alive')
+				.then(() => {
+					statusBarItem.text = `Your version of scalavista-server is outdated - please update.`
+					statusBarItem.tooltip = `Download the most recent version here: ${releaseUrl}`
+				})
+				.catch(() => {
+					statusBarItem.text = 'Scalavista server appears down...'
+					statusBarItem.tooltip = `Download the latest version here : ${releaseUrl}`
+				}))
 	}
 
 	checkServerIntervalObj = setInterval(checkServerAlive, 1000)

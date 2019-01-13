@@ -21,7 +21,7 @@
     "type": "git",
     "url": "https://github.com/buntec/vscode-scalavista.git"
   },
-  "version": "0.1.9",
+  "version": "0.1.10",
   "engines": {
     "vscode": "^1.30.0"
   },
