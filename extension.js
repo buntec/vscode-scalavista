@@ -17,13 +17,15 @@ let latestServerVersion = null
 
 function serverIsOutdated(version) {
 	try {
-		let [major, minor, patch] = version.split('.')
-		let [majorLatest, minorLatest, patchLatest] = latestServerVersion.split('.')
-		if (parseInt(majorLatest) > parseInt(major))
+		let [major, minor, patch] = version.split('.').map(s => parseInt(s))
+		let [majorLatest, minorLatest, patchLatest] = latestServerVersion.split('.').map(s => parseInt(s))
+		console.log('this', major, minor, patch)
+		console.log('latest', majorLatest, minorLatest, patchLatest)
+		if (majorLatest > major)
 			return true
-		if (parseInt(minorLatest) > parseInt(minor))
+		if ((majorLatest == major) && (minorLatest > minor))
 			return true
-		if (parseInt(patchLatest) > parseInt(patch))
+		if ((majorLatest == major) && (minorLatest == minor) && (patchLatest > patch))
 			return true
 	} catch (error) {}
 	return false
