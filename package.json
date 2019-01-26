@@ -43,6 +43,11 @@
           "type": "number",
           "default": 1000,
           "description": "time in ms between refreshes of the diagnostics (increase this if you are on a slow machine)"
+        },
+        "Scalavista.showServerWarning": {
+          "type": "boolean",
+          "default": true,
+          "description": "show link to download page when no server is detected at startup"
         }
       }
     },

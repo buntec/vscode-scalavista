@@ -14,13 +14,42 @@ let port = 0
 let notes = null
 let statusBarItem = null
 let latestServerVersion = null
+let serverAlive = false
+const releaseUrl = 'https://github.com/buntec/scalavista-server/releases'
+
+function setAlive(callback) {
+	if (!serverAlive) {
+		serverAlive = true
+		callback()
+	}
+}
+
+function setDead(callback) {
+	if (serverAlive) {
+		serverAlive = false
+		callback()
+	}
+}
+
+// (re)load all Scala/Java docs that are already open
+function reloadOpenDocuments() {
+	vscode.workspace.textDocuments.forEach(document => {
+		if ((document.languageId != 'scala') && (document.languageId != 'java'))
+			return
+		let filename = document.fileName
+		let fileContents = document.getText()
+		let payload = {
+			filename,
+			fileContents
+		}
+		axios.post(serverUrl() + '/reload-file', payload)
+	})
+}
 
 function serverIsOutdated(version) {
 	try {
 		let [major, minor, patch] = version.split('.').map(s => parseInt(s))
 		let [majorLatest, minorLatest, patchLatest] = latestServerVersion.split('.').map(s => parseInt(s))
-		console.log('this', major, minor, patch)
-		console.log('latest', majorLatest, minorLatest, patchLatest)
 		if (majorLatest > major)
 			return true
 		if ((majorLatest == major) && (minorLatest > minor))
@@ -65,6 +94,8 @@ function activate(context) {
 
 	port = vscode.workspace.getConfiguration('Scalavista').get('port')
 	const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
+	const showServerWarning = vscode.workspace.getConfiguration('Scalavista').get('showServerWarning')
+
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
@@ -207,7 +238,6 @@ function activate(context) {
 	statusBarItem.show()
 
 	function checkServerAlive() {
-		const releaseUrl = 'https://github.com/buntec/scalavista-server/releases'
 		axios.get(serverUrl() + '/version')
 			.then(response => {
 				let serverVersion = response.data
@@ -217,6 +247,7 @@ function activate(context) {
 				} else {
 					statusBarItem.text = `Scalavista server ${serverVersion} live @ ${serverUrl()}`
 					statusBarItem.tooltip = ''
+					setAlive(reloadOpenDocuments)
 				}
 			})
 			.catch(() => axios.get(serverUrl() + '/alive')
@@ -226,7 +257,8 @@ function activate(context) {
 				})
 				.catch(() => {
 					statusBarItem.text = 'Scalavista server appears down...'
-					statusBarItem.tooltip = `Download the latest version here : ${releaseUrl}`
+					statusBarItem.tooltip = ''
+					setDead()
 				}))
 	}
 
@@ -277,6 +309,7 @@ function activate(context) {
 		}).catch(() => {})
 	}
 
+
 	vscode.workspace.onDidChangeTextDocument(event => {
 		if ((event.document.languageId != 'scala') && (event.document.languageId != 'java'))
 			return
@@ -288,6 +321,15 @@ function activate(context) {
 		}
 		axios.post(serverUrl() + '/reload-file', payload)
 	})
+
+	if (showServerWarning) {
+		setTimeout(() => {
+			if (!serverAlive) {
+				vscode.window.showWarningMessage(`You don't seem to be running a scalavista-server instance. 
+			Download the latest version from [GitHub](${releaseUrl}).`)
+			}
+		}, 3000)
+	}
 
 	context.subscriptions.push(disposable);
 }
