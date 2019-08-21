@@ -3,7 +3,7 @@
 ![](demo2.gif)
 
 A Visual Studio Code extension that provides IDE-like functionality
-for the Scala language (2.11.x and 2.12.x):
+for the Scala language (2.11--2.13):
 
 * Show type on hover;
 * Show Scaladoc on hover;
@@ -16,7 +16,7 @@ language server, which in turn is a thin wrapper around Scala's presentation com
 
 ## Prerequisites
 
-* [scalavista-server](https://github.com/buntec/scalavista-server);
+* Java: make sure you have `java` on your `PATH`.
 * [sbt](https://www.scala-sbt.org) and the [sbt-scalavista](https://github.com/buntec/sbt-scalavista) plugin are recommended. 
 
 ## Install 
@@ -25,9 +25,17 @@ Install this extension from the [Marketplace](https://marketplace.visualstudio.c
 
 ## Usage
 
-See [scalavista-server](https://github.com/buntec/scalavista-server) on how to
-set up and launch a server (easy!) - the extension will connect to it
-upon opening any Scala source file.
+The extension is activated upon opening any Scala source
+file. On first activation it will try to download the
+latest version of the scalavista-server jars.
+(The user is prompted before downloading begins.) 
+Afterwards the extension will 
+launch a server instance in the background. 
+
+To get the most out of this extension, a `scalavista.json`
+file should be generated using the sbt companion plugin.
+
+Happy coding!
 
 ## Caveats
 

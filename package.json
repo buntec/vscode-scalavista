@@ -21,7 +21,7 @@
     "type": "git",
     "url": "https://github.com/buntec/vscode-scalavista.git"
   },
-  "version": "0.1.12",
+  "version": "0.1.13",
   "engines": {
     "vscode": "^1.30.0"
   },
@@ -47,21 +47,14 @@
         "Scalavista.diagnosticsRefreshPeriod": {
           "type": "number",
           "default": 1000,
-          "description": "time in ms between refreshes of the diagnostics (increase this if you are on a slow machine)"
-        },
-        "Scalavista.showServerWarning": {
-          "type": "boolean",
-          "default": true,
-          "description": "show link to download page when no server is detected at startup"
+          "description": "time in ms between refreshes of the diagnostics (increase this if your machine is slow)"
         }
       }
     },
-    "commands": [
-      {
-        "command": "extension.scalavistaDebugDump",
-        "title": "Dump scalavista debug information"
-      }
-    ]
+    "commands": [{
+      "command": "extension.scalavistaDebugDump",
+      "title": "Dump scalavista debug information"
+    }]
   },
   "scripts": {
     "postinstall": "node ./node_modules/vscode/bin/install",
