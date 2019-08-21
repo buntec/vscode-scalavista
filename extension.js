@@ -1,21 +1,133 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-const vscode = require('vscode');
+const vscode = require('vscode')
 const axios = require('axios')
+const fs = require('fs')
+const path = require('path')
+const {
+	spawn
+} = require('child_process')
+const R = require('ramda')
+const semver = require('semver')
+const uuidv4 = require('uuid/v4')
+
+
 
 let errorRefreshIntervalObj = null
 let checkServerIntervalObj = null
+let startServerIntervalObj = null
 let typeHoverDisposable = null
 let docHoverDisposable = null
 let typeCompletionDisposable = null
 let scopeCompletionDisposable = null
 let definitionProviderDisposable = null
-let port = 0
+let port = 9317
 let notes = null
 let statusBarItem = null
-let latestServerVersion = null
 let serverAlive = false
-const releaseUrl = 'https://github.com/buntec/scalavista-server/releases'
+const serverReleasesUrl = 'https://api.github.com/repos/buntec/scalavista-server/releases'
+
+
+function startServer(serverJar, uuid, port) {
+	vscode.window.showInformationMessage(`attempting to start scalavista server on port ${port}`)
+	return spawn('java', ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()])
+}
+
+function parseScalavistaJson() {
+	let workspaceRoot = vscode.workspace.workspaceFolders[0].uri.path
+	let pathToFile = path.join(workspaceRoot, 'scalavista.json')
+	if (fs.existsSync(pathToFile)) {
+		return JSON.parse(fs.readFileSync(pathToFile))
+	} else {
+		return {}
+	}
+}
+
+function downloadFile(url, writePath) {
+	vscode.window.showInformationMessage(`Attempting to download ${url} to ${writePath}.`);
+	axios({
+		method: "get",
+		url: url,
+		responseType: "stream"
+	}).then(function (response) {
+		response.data.pipe(fs.createWriteStream(writePath));
+		vscode.window.showInformationMessage(`Download of ${url} completed.`);
+	}).catch(() => {
+		vscode.window.showWarningMessage(`Failed to download ${url}.`)
+	});
+}
+
+function getExtensionPath() {
+	return vscode.extensions.getExtension("buntec.vscode-scalavista").extensionPath;
+}
+
+function conditionallyDownloadServerJar(scalaVersion) {
+	let extensionRoot = getExtensionPath()
+	axios.get(serverReleasesUrl).
+	then(response => {
+		let releases = response.data
+		let assets = releases[0]['assets']
+		assets.forEach(asset => {
+			let name = asset['name']
+			const filePath = path.join(extensionRoot, name)
+			if (isValidServerJar(name) && (getScalaVersionFromServerJar(name) === scalaVersion) && !fs.existsSync(filePath)) {
+				let sizeInMb = asset['size'] / 1000000
+				vscode.window.showInformationMessage(`New Scalavista server jar found ${name} 
+				   - OK to download from GitHub? (~ ${sizeInMb} MB)`, 'Yes', 'No').
+				then(answer => {
+					if (answer === 'Yes') {
+						let downloadUrl = asset['browser_download_url']
+						downloadFile(downloadUrl, filePath)
+					}
+				}).catch(() => {})
+			}
+		})
+	}).catch(() => {
+		vscode.window.showWarningMessage('Failed to query GitHub for the latest Scalavista server jars.')
+	})
+}
+
+function isValidServerJar(jar) {
+	return /scalavista-server-.*\.jar/.test(jar) &&
+		/\d+\.\d+\.\d+/.test(jar) &&
+		/\_(\d\.\d{1,2})\.jar/.test(jar)
+}
+
+function getScalaVersionFromServerJar(jar) {
+	if (isValidServerJar(jar)) {
+		return jar.match(/\_(\d\.\d{1,2})\.jar/)[1]
+	} else {
+		return null
+	}
+}
+
+function getScalavistaVersionFromServerJar(jar) {
+	if (isValidServerJar(jar)) {
+		return jar.match(/\d+\.\d+\.\d+/)[0]
+	} else {
+		return null
+	}
+}
+
+function locateServerJars() {
+	let serverJars = []
+	let extensionRoot = getExtensionPath()
+	let items = fs.readdirSync(extensionRoot)
+	items.forEach(item => {
+		if (isValidServerJar(item)) {
+			serverJars.push(path.join(extensionRoot, item))
+		}
+	})
+	if (R.isEmpty(serverJars)) {
+		return {}
+	}
+	let serverJarsByVersion = R.groupBy(getScalavistaVersionFromServerJar, serverJars)
+	let versions = R.keys(serverJarsByVersion)
+	let latestVersion = versions.sort(semver.rcompare)[0]
+	let latestJars = serverJarsByVersion[latestVersion]
+	let latestJarsByScalaVersion = R.map(a => a[0], R.groupBy(getScalaVersionFromServerJar, latestJars))
+	return latestJarsByScalaVersion
+}
 
 function setAlive(callback) {
 	if (!serverAlive) {
@@ -46,6 +158,7 @@ function reloadOpenDocuments() {
 	})
 }
 
+/*
 function serverIsOutdated(version) {
 	try {
 		let [major, minor, patch] = version.split('.').map(s => parseInt(s))
@@ -59,7 +172,9 @@ function serverIsOutdated(version) {
 	} catch (error) {}
 	return false
 }
+*/
 
+/*
 function checkForLatestServerVersion() {
 	axios.get('https://api.github.com/repos/buntec/scalavista-server/releases').then(response => {
 		let releases = response.data
@@ -67,6 +182,7 @@ function checkForLatestServerVersion() {
 		latestServerVersion = latestRelease.substring(1)
 	}).catch(() => {})
 }
+*/
 
 function completionKindFromDetail(detail) {
 	const isDef = /\bdef\b/.test(detail)
@@ -90,11 +206,19 @@ function serverUrl() {
  */
 function activate(context) {
 
-	checkForLatestServerVersion()
+	const uuid = uuidv4()
+	const scalavistaJson = parseScalavistaJson()
+	//checkForLatestServerVersion()
 
 	port = vscode.workspace.getConfiguration('Scalavista').get('port')
 	const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
-	const showServerWarning = vscode.workspace.getConfiguration('Scalavista').get('showServerWarning')
+	//const showServerWarning = vscode.workspace.getConfiguration('Scalavista').get('showServerWarning')
+	const defaultScalaVersion = vscode.workspace.getConfiguration('Scalavista').get('defaultScalaVersion')
+
+	const scalaVersion = R.has('scalaBinaryVersion', scalavistaJson) ?
+		scalavistaJson['scalaBinaryVersion'] : defaultScalaVersion
+
+	conditionallyDownloadServerJar(scalaVersion)
 
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -237,6 +361,49 @@ function activate(context) {
 	statusBarItem.text = "Scalavista extension activated"
 	statusBarItem.show()
 
+	function conditionallyStartServer() {
+		if (!serverAlive) {
+			let serverJarsByScalaVersion = locateServerJars()
+			if (R.has(scalaVersion, serverJarsByScalaVersion)) {
+				let serverJar = serverJarsByScalaVersion[scalaVersion]
+				port += 1
+				let serverProcess = startServer(serverJar, uuid, port)
+				serverProcess.stdout.on('data', (data) => {
+					console.log(data.toString())
+				})
+				serverProcess.stderr.on('data', (data) => {
+					console.log(data.toString())
+				})
+				serverProcess.on('exit', () => {
+					vscode.window.showWarningMessage('Scalavista server process exited.')
+				})
+				serverProcess.on('error', () => {
+					vscode.window.showWarningMessage('Error when spawing scalavista server process.')
+				})
+			} else {
+				vscode.window.showWarningMessage(`Unable to start server - no server jar found for Scala version ${scalaVersion}.`)
+			}
+		}
+	}
+
+	function checkServerAlive() {
+		axios.get(serverUrl() + '/alive').
+		then(response => {
+			if (response.data === uuid) {
+				statusBarItem.text = `Scalavista server online (Scala version ${scalaVersion})`
+				statusBarItem.tooltip = `Serving at ${serverUrl()}`
+				setAlive(reloadOpenDocuments)
+			} else {
+				throw 'uuids not matching - another instance of scalavista server seems to be running'
+			}
+		}).catch(() => {
+			statusBarItem.text = 'Waiting for Scalavista server to come alive...'
+			statusBarItem.tooltip = ''
+			setDead()
+		})
+	}
+
+	/*
 	function checkServerAlive() {
 		axios.get(serverUrl() + '/version')
 			.then(response => {
@@ -261,9 +428,12 @@ function activate(context) {
 					setDead()
 				}))
 	}
+	*/
 
-	checkServerIntervalObj = setInterval(checkServerAlive, 1000)
-
+	checkServerAlive()
+	conditionallyStartServer()
+	startServerIntervalObj = setInterval(conditionallyStartServer, 5000)
+	checkServerIntervalObj = setInterval(checkServerAlive, 250)
 	errorRefreshIntervalObj = setInterval(getErrorsAndUpdateDiagnostics, refreshPeriod)
 
 	function getErrorsAndUpdateDiagnostics() {
@@ -322,6 +492,7 @@ function activate(context) {
 		axios.post(serverUrl() + '/reload-file', payload)
 	})
 
+	/*
 	if (showServerWarning) {
 		setTimeout(() => {
 			if (!serverAlive) {
@@ -330,6 +501,7 @@ function activate(context) {
 			}
 		}, 3000)
 	}
+	*/
 
 	context.subscriptions.push(disposable);
 }
@@ -344,6 +516,7 @@ function deactivate() {
 	definitionProviderDisposable.dispose()
 	clearInterval(errorRefreshIntervalObj)
 	clearInterval(checkServerIntervalObj)
+	clearInterval(startServerIntervalObj)
 	statusBarItem.dispose()
 }
 

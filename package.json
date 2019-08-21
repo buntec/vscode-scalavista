@@ -34,6 +34,11 @@
       "type": "object",
       "title": "Scalavista configuration",
       "properties": {
+        "Scalavista.defaultScalaVersion": {
+          "type": "string",
+          "default": "2.13",
+          "description": "Scala version used in the absence of scalavista.json"
+        },
         "Scalavista.port": {
           "type": "number",
           "default": 9317,
@@ -70,6 +75,9 @@
     "@types/mocha": "^2.2.42"
   },
   "dependencies": {
-    "axios": "^0.19.0"
+    "axios": "^0.19.0",
+    "ramda": "^0.26.1",
+    "semver": "^6.3.0",
+    "uuid": "^3.3.3"
   }
 }
