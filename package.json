@@ -1,76 +1,79 @@
 {
-  "name": "vscode-scalavista",
-  "displayName": "Scalavista",
-  "description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings as you type",
-  "categories": [
-    "Programming Languages",
-    "Linters",
-    "Other"
-  ],
-  "keywords": [
-    "scala"
-  ],
-  "publisher": "buntec",
-  "author": {
-    "name": "Christoph Bunte"
-  },
-  "license": "SEE LICENSE IN LICENSE",
-  "icon": "scala-spiral.png",
-  "homepage": "https://github.com/buntec/vscode-scalavista/blob/master/README.md",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/buntec/vscode-scalavista.git"
-  },
-  "version": "0.1.13",
-  "engines": {
-    "vscode": "^1.30.0"
-  },
-  "activationEvents": [
-    "onLanguage:scala"
-  ],
-  "main": "./extension.js",
-  "contributes": {
-    "configuration": {
-      "type": "object",
-      "title": "Scalavista configuration",
-      "properties": {
-        "Scalavista.defaultScalaVersion": {
-          "type": "string",
-          "default": "2.13",
-          "description": "Scala version used in the absence of scalavista.json"
-        },
-        "Scalavista.port": {
-          "type": "number",
-          "default": 9317,
-          "description": "server port number"
-        },
-        "Scalavista.diagnosticsRefreshPeriod": {
-          "type": "number",
-          "default": 1000,
-          "description": "time in ms between refreshes of the diagnostics (increase this if your machine is slow)"
-        }
-      }
+    "name": "vscode-scalavista",
+    "displayName": "Scalavista",
+    "description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings as you type",
+    "categories": [
+        "Programming Languages",
+        "Linters",
+        "Other"
+    ],
+    "keywords": [
+        "scala"
+    ],
+    "publisher": "buntec",
+    "author": {
+        "name": "Christoph Bunte"
     },
-    "commands": [{
-      "command": "extension.scalavistaDebugDump",
-      "title": "Dump scalavista debug information"
-    }]
-  },
-  "scripts": {
-    "postinstall": "node ./node_modules/vscode/bin/install",
-    "test": "node ./node_modules/vscode/bin/test"
-  },
-  "devDependencies": {
-    "typescript": "^3.1.4",
-    "vscode": "^1.1.25",
-    "eslint": "^4.11.0",
-    "@types/node": "^8.10.25",
-    "@types/mocha": "^2.2.42"
-  },
-  "dependencies": {
-    "axios": "^0.19.0",
-    "ramda": "^0.26.1",
-    "semver": "^6.3.0",
-    "uuid": "^3.3.3"
-  }
+    "license": "SEE LICENSE IN LICENSE",
+    "icon": "scala-spiral.png",
+    "homepage": "https://github.com/buntec/vscode-scalavista/blob/master/README.md",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/buntec/vscode-scalavista.git"
+    },
+    "version": "0.1.13",
+    "engines": {
+        "vscode": "^1.30.0"
+    },
+    "activationEvents": [
+        "onLanguage:scala"
+    ],
+    "main": "./extension.js",
+    "contributes": {
+        "configuration": {
+            "type": "object",
+            "title": "Scalavista configuration",
+            "properties": {
+                "Scalavista.defaultScalaVersion": {
+                    "type": "string",
+                    "default": "2.13",
+                    "description": "Scala version used in the absence of scalavista.json"
+                },
+                "Scalavista.port": {
+                    "type": "number",
+                    "default": 9317,
+                    "description": "this is the lowest port number used"
+                },
+                "Scalavista.diagnosticsRefreshPeriod": {
+                    "type": "number",
+                    "default": 1000,
+                    "description": "time in ms between refreshes of the diagnostics (increase this if your machine is slow)"
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "extension.scalavistaDebugDump",
+                "title": "Dump scalavista debug information"
+            }
+        ]
+    },
+    "scripts": {
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^8.10.25",
+        "eslint": "^4.11.0",
+        "standard": "^14.0.0",
+        "typescript": "^3.1.4",
+        "vscode": "^1.1.25"
+    },
+    "dependencies": {
+        "axios": "^0.19.0",
+        "ramda": "^0.26.1",
+        "semver": "^6.3.0",
+        "uuid": "^3.3.3"
+    }
 }
