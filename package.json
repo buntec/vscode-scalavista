@@ -21,7 +21,7 @@
         "type": "git",
         "url": "https://github.com/buntec/vscode-scalavista.git"
     },
-    "version": "0.1.13",
+    "version": "0.1.14",
     "engines": {
         "vscode": "^1.30.0"
     },
@@ -38,11 +38,6 @@
                     "type": "string",
                     "default": "2.13",
                     "description": "Scala version used in the absence of scalavista.json"
-                },
-                "Scalavista.port": {
-                    "type": "number",
-                    "default": 9317,
-                    "description": "this is the lowest port number used"
                 },
                 "Scalavista.diagnosticsRefreshPeriod": {
                     "type": "number",

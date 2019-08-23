@@ -28,9 +28,9 @@ Install this extension from the [Marketplace](https://marketplace.visualstudio.c
 The extension is activated upon opening any Scala source
 file. On first activation it will try to download the
 latest version of the scalavista-server jars.
-(The user is prompted before downloading begins.) 
+(The user is always prompted before downloading begins.) 
 Afterwards the extension will 
-launch a server instance in the background. 
+launch the language server in the background. 
 
 To get the most out of this extension, a `scalavista.json`
 file should be generated using the sbt companion plugin.
