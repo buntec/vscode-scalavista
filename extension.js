@@ -27,6 +27,24 @@ const portMin = 49152
 const portMax = 65535
 let port = portMin
 
+function getExtensionPath () {
+  return vscode.extensions.getExtension('buntec.vscode-scalavista').extensionPath
+}
+
+let outLogFile
+try {
+  outLogFile = fs.openSync(path.join(getExtensionPath(), 'scalavista-err.log'), 'w')
+} catch (err) {
+  outLogFile = 'ignore'
+}
+
+let errLogFile
+try {
+  errLogFile = fs.openSync(path.join(getExtensionPath(), 'scalavista-out.log'), 'w')
+} catch (err) {
+  errLogFile = 'ignore'
+}
+
 function getRandomIntInclusive (min, max) {
   min = Math.ceil(min)
   max = Math.floor(max)
@@ -34,8 +52,12 @@ function getRandomIntInclusive (min, max) {
 }
 
 function startServer (serverJar, uuid, port) {
+  const options = {
+    cwd: vscode.workspace.workspaceFolders[0].uri.fsPath,
+    stdio: ['pipe', outLogFile, errLogFile]
+  }
   vscode.window.showInformationMessage(`Starting scalavista server (port ${port}).`)
-  return spawn('java', ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()], { cwd: vscode.workspace.workspaceFolders[0].uri.fsPath })
+  return spawn('java', ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()], options)
 }
 
 function parseScalavistaJson () {
@@ -71,10 +93,6 @@ function downloadFile (url, writePath) {
   }).catch(() => {
     vscode.window.showWarningMessage(`Failed to download ${url}.`)
   })
-}
-
-function getExtensionPath () {
-  return vscode.extensions.getExtension('buntec.vscode-scalavista').extensionPath
 }
 
 function isValidServerJar (jar) {
@@ -132,16 +150,6 @@ function reloadOpenDocuments () {
     axios.post(serverUrl() + '/reload-file', payload)
   })
 }
-
-/*
-function checkForLatestServerVersion () {
-  axios.get('https://api.github.com/repos/buntec/scalavista-server/releases').then(response => {
-    const releases = response.data
-    const latestRelease = releases[0].tag_name
-    latestServerVersion = latestRelease.substring(1)
-  }).catch(() => {})
-}
-*/
 
 function completionKindFromDetail (detail) {
   const isDef = /\bdef\b/.test(detail)
@@ -317,7 +325,7 @@ function activate (context) {
     axios.get(serverUrl() + '/alive')
       .then(response => {
         if (response.data === uuid) {
-          statusBarItem.text = `Scalavista server online (Scala version ${scalaVersion})`
+          statusBarItem.text = `Scalavista server online (Scala ${scalaVersion}, port ${port})`
           statusBarItem.tooltip = `Serving at ${serverUrl()}`
           setAlive(reloadOpenDocuments)
         } else {
@@ -366,16 +374,11 @@ function activate (context) {
       if (serverProcess !== null) {
         try {
           serverProcess.stdin.write('x') // any input will shut down the server
+          serverProcess.stdin.end()
         } catch (err) { }
       }
       port = getRandomIntInclusive(portMin, portMax)
       serverProcess = startServer(serverJar, uuid, port)
-      serverProcess.stdout.on('data', (data) => {
-        console.log(data.toString())
-      })
-      serverProcess.stderr.on('data', (data) => {
-        console.log(data.toString())
-      })
       serverProcess.on('exit', () => {
         tryToStartServer = true
         vscode.window.showWarningMessage('Scalavista server process exited. Will try to restart...')
@@ -499,7 +502,8 @@ function deactivate () {
   statusBarItem.dispose()
   if (serverProcess !== null) {
     try {
-      serverProcess.stdin.write('x')
+      serverProcess.stdin.write('x') // any input will stop the server
+      serverProcess.stdin.end()
     } catch (err) {}
   }
 }
