@@ -30,6 +30,19 @@
     ],
     "main": "./extension.js",
     "contributes": {
+        "languages": [
+            {
+                "id": "scala",
+                "aliases": [
+                    "Scala",
+                    "scala"
+                ],
+                "extensions": [
+                    ".scala",
+                    ".sc"
+                ]
+            }
+        ],
         "configuration": {
             "type": "object",
             "title": "Scalavista configuration",
