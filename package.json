@@ -61,8 +61,8 @@
         },
         "commands": [
             {
-                "command": "extension.scalavistaDebugDump",
-                "title": "Dump scalavista debug information"
+                "command": "extension.scalavistaKillServer",
+                "title": "Kill the currenly running server instance"
             }
         ]
     },
@@ -81,6 +81,7 @@
     "dependencies": {
         "axios": "^0.19.0",
         "ramda": "^0.26.1",
+        "request": "^2.88.0",
         "semver": "^6.3.0",
         "uuid": "^3.3.3"
     }

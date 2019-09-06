@@ -11,6 +11,7 @@ const R = require('ramda')
 const semver = require('semver')
 const uuidv4 = require('uuid/v4')
 
+const supportedScalaVersions = ['2.11', '2.12', '2.13']
 let serverProcess = null
 let errorRefreshIntervalObj = null
 let checkServerIntervalObj = null
@@ -51,13 +52,27 @@ function getRandomIntInclusive (min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min // The maximum is inclusive and the minimum is inclusive
 }
 
-function startServer (serverJar, uuid, port) {
+function startServer (javaCmd, serverJar, uuid, port) {
   const options = {
     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath,
     stdio: ['pipe', outLogFile, errLogFile]
   }
-  vscode.window.showInformationMessage(`Starting scalavista server (port ${port}).`)
-  return spawn('java', ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()], options)
+  vscode.window.showInformationMessage(`Starting language server (port ${port}).`)
+  return spawn(javaCmd, ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()], options)
+}
+
+function serverJarIsOk (javaCmd, serverJar) {
+  return new Promise(function (resolve, reject) {
+    const options = { cwd: vscode.workspace.workspaceFolders[0].uri.fsPath }
+    const subprocess = spawn(javaCmd, ['-jar', serverJar, '--help'], options)
+    subprocess.stdout.on('data', (data) => {
+      resolve(data)
+    })
+    subprocess.stderr.on('data', (data) => {
+      reject(data)
+    })
+    subprocess.on('error', (err) => reject(err))
+  })
 }
 
 function parseScalavistaJson () {
@@ -66,14 +81,12 @@ function parseScalavistaJson () {
   if (fs.existsSync(pathToFile)) {
     return JSON.parse(fs.readFileSync(pathToFile))
   } else {
-    vscode.window.showWarningMessage(`scalavista.json not found - consider generating one for your 
-    project using the scalavista sbt plugin. External dependencies will otherwise not be recognized.`)
+    vscode.window.showWarningMessage('scalavista.json not found - consider creating one for your project.')
     return {}
   }
 }
 
 function downloadFile (url, writePath) {
-  vscode.window.showInformationMessage(`Attempting to download ${url} to ${writePath}.`)
   return axios({
     method: 'get',
     url: url,
@@ -81,15 +94,28 @@ function downloadFile (url, writePath) {
   }).then(function (response) {
     const stream = fs.createWriteStream(writePath)
     response.data.pipe(stream)
-    return new Promise(function (resolve, reject) {
-      stream.on('finish', () => {
-        vscode.window.showInformationMessage(`Completed download of ${url}.`)
-        resolve()
-      })
-      stream.on('error', (err) => {
-        reject(err)
-      })
-    })
+    return vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Downloading ${url} to ${writePath}.`,
+        cancellable: true
+      },
+      (progress, token) => {
+        token.onCancellationRequested(() => {
+          stream.destroy('user cancelled')
+        })
+        return new Promise(function (resolve, reject) {
+          stream.on('finish', () => {
+            vscode.window.showInformationMessage(`Completed download of ${url}.`)
+            resolve()
+          })
+          stream.on('error', (err) => {
+            vscode.window.showInformationMessage(`Download aborted: ${err}.`)
+            reject(err)
+          })
+        })
+      }
+    )
   }).catch(() => {
     vscode.window.showWarningMessage(`Failed to download ${url}.`)
   })
@@ -162,16 +188,17 @@ function completionKindFromDetail (detail) {
 }
 
 function isJavaAvailable () {
+  const javaCmd = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java'
   return new Promise(function (resolve, reject) {
-    const subprocess = spawn('java', ['-version'])
-    subprocess.on('error', () => {
-      resolve(false)
+    const subprocess = spawn(javaCmd, ['-version'])
+    subprocess.on('error', (err) => {
+      reject(err)
     })
     subprocess.stdout.on('data', () => {
-      resolve(true)
+      resolve(javaCmd)
     })
     subprocess.stderr.on('data', () => {
-      resolve(true)
+      resolve(javaCmd)
     })
   })
 }
@@ -296,6 +323,7 @@ const scopeCompletionProvider = {
 function activate (context) {
   const uuid = uuidv4()
 
+  let scalaVersion
   let serverJar = null
   let serverIsAlive = false
   let tryToStartServer = false
@@ -303,9 +331,14 @@ function activate (context) {
   const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
   const defaultScalaVersion = vscode.workspace.getConfiguration('Scalavista').get('defaultScalaVersion')
 
-  const scalavistaJson = parseScalavistaJson()
-  const scalaVersion = R.has('scalaBinaryVersion', scalavistaJson)
-    ? scalavistaJson.scalaBinaryVersion : defaultScalaVersion
+  function setScalaVersion () {
+    const scalavistaJson = parseScalavistaJson()
+    scalaVersion = R.has('scalaBinaryVersion', scalavistaJson)
+      ? scalavistaJson.scalaBinaryVersion : defaultScalaVersion
+    if (!R.contains(scalaVersion, supportedScalaVersions)) {
+      vscode.window.showErrorMessage(`Scala version ${scalaVersion} is not valid/supported. Must be one of ${supportedScalaVersions}`)
+    }
+  }
 
   function setAlive (callback) {
     if (!serverIsAlive) {
@@ -325,47 +358,77 @@ function activate (context) {
     axios.get(serverUrl() + '/alive')
       .then(response => {
         if (response.data === uuid) {
-          statusBarItem.text = `Scalavista server online (Scala ${scalaVersion}, port ${port})`
+          statusBarItem.text = `Scala language server online (Scala ${scalaVersion}, port ${port})`
           statusBarItem.tooltip = `Serving at ${serverUrl()}`
-          setAlive(reloadOpenDocuments)
+          setAlive(function () {
+            vscode.window.showInformationMessage('Scala language server is now live.')
+            reloadOpenDocuments()
+          })
         } else {
           throw Error('uuids not matching - another instance of scalavista server seems to be running')
         }
       }).catch(() => {
-        statusBarItem.text = 'Waiting for Scalavista server to come alive...'
+        statusBarItem.text = 'Waiting for Scala language server to come alive...'
         statusBarItem.tooltip = ''
         setDead(() => {})
       })
   }
 
+  function downloadLatestServerJar (scalaVersion) {
+    return getLatestServerJarAsset(scalaVersion)
+      .then((asset) => {
+        const extensionRoot = getExtensionPath()
+        const name = asset.name
+        const filePath = path.join(extensionRoot, name)
+        const downloadUrl = asset.browser_download_url
+        return downloadFile(downloadUrl, filePath)
+      })
+  }
+
   function conditionallyDownloadServerJar (scalaVersion) {
-    const extensionRoot = getExtensionPath()
+    return getLatestServerJarAsset(scalaVersion)
+      .then((asset) => {
+        const extensionRoot = getExtensionPath()
+        const name = asset.name
+        const filePath = path.join(extensionRoot, name)
+        const sizeInMb = asset.size / 1000000
+        if (!fs.existsSync(filePath)) {
+          return vscode.window.showInformationMessage(
+                `New Scalavista server jar found ${name}. Download from GitHub? (~ ${sizeInMb.toFixed(2)} MB)`, 'Yes', 'No'
+          ).then(answer => {
+            if (answer === 'Yes') {
+              const downloadUrl = asset.browser_download_url
+              return downloadFile(downloadUrl, filePath)
+            }
+          }).catch(() => {})
+        }
+      })
+  }
+
+  function getLatestServerJarAsset (scalaVersion) {
     return axios.get(serverReleasesUrl)
       .then(response => {
         const releases = response.data
         const assets = releases[0].assets
-        const promises = assets.map(asset => {
+        return assets.filter(asset => {
           const name = asset.name
-          const filePath = path.join(extensionRoot, name)
-          if (isValidServerJar(name) && (getScalaVersionFromServerJar(name) === scalaVersion) && !fs.existsSync(filePath)) {
-            const sizeInMb = asset.size / 1000000
-            return vscode.window.showInformationMessage(
-              `New Scalavista server jar found ${name}. Download from GitHub? (~ ${sizeInMb.toFixed(2)} MB)`, 'Yes', 'No'
-            ).then(answer => {
-              if (answer === 'Yes') {
-                const downloadUrl = asset.browser_download_url
-                return downloadFile(downloadUrl, filePath)
-              }
-            }).catch(() => {})
-          }
-        })
-        return Promise.all(promises)
+          return isValidServerJar(name) && (getScalaVersionFromServerJar(name) === scalaVersion)
+        })[0]
       }).catch(() => {
         vscode.window.showWarningMessage(
-            `Failed to query GitHub for the latest Scalavista server jars.
-             No internet or behind a proxy?`
+                `Failed to query GitHub for the latest Scalavista server jars.
+                No internet or behind a proxy?`
         )
       })
+  }
+
+  function killServer () {
+    if (serverProcess !== null) {
+      try {
+        serverProcess.stdin.write('x') // any input will shut down the server
+        serverProcess.stdin.end()
+      } catch (err) { }
+    }
   }
 
   function conditionallyStartServer () {
@@ -377,37 +440,68 @@ function activate (context) {
           serverProcess.stdin.end()
         } catch (err) { }
       }
-      port = getRandomIntInclusive(portMin, portMax)
-      serverProcess = startServer(serverJar, uuid, port)
-      serverProcess.on('exit', () => {
-        tryToStartServer = true
-        vscode.window.showWarningMessage('Scalavista server process exited. Will try to restart...')
-      })
-      serverProcess.on('error', () => {
-        tryToStartServer = true
-        vscode.window.showWarningMessage('Error when spawing scalavista server process. Will try to restart...')
-      })
+      isJavaAvailable()
+        .then(javaCmd => {
+          serverJarIsOk(javaCmd, serverJar)
+            .then(() => {
+              port = getRandomIntInclusive(portMin, portMax)
+              serverProcess = startServer(javaCmd, serverJar, uuid, port)
+              serverProcess.on('exit', () => {
+                tryToStartServer = true
+                vscode.window.showWarningMessage('Language server process exited. Will try to restart...')
+              })
+              serverProcess.on('error', () => {
+                tryToStartServer = true
+                vscode.window.showWarningMessage('Error when spawning server process.')
+              })
+            }).catch((err) => {
+              vscode.window.showErrorMessage(`${err}`, 'Download latest jar from GitHub').then((answer) => {
+                if (answer) {
+                  return downloadLatestServerJar(scalaVersion)
+                }
+              }).finally(() => {
+                tryToStartServer = true
+              })
+            })
+        }).catch(() => {})
     }
   }
 
-  isJavaAvailable().then(hasJava => {
-    if (hasJava) {
-      return conditionallyDownloadServerJar(scalaVersion).then(() => { tryToStartServer = true })
-    } else {
-      tryToStartServer = false
-      vscode.window.showWarningMessage('Unable to find java executable - make sure it is on your PATH. Java is required to run the language server.')
+  function serverInit () {
+    setScalaVersion()
+    tryToStartServer = false
+    killServer()
+    isJavaAvailable().catch(() => {
+      vscode.window.showWarningMessage('Unable to find java - make sure it is on your PATH or JAVA_HOME is defined.')
     }
-  }).finally(() => {
-    const serverJarsByScalaVersion = locateServerJars()
-    serverJar = R.has(scalaVersion, serverJarsByScalaVersion) ? serverJarsByScalaVersion[scalaVersion] : null
-    conditionallyStartServer()
+    ).then(() => {
+      return conditionallyDownloadServerJar(scalaVersion)
+    }).catch(() => {})
+      .finally(() => {
+        const serverJarsByScalaVersion = locateServerJars()
+        serverJar = R.has(scalaVersion, serverJarsByScalaVersion) ? serverJarsByScalaVersion[scalaVersion] : null
+        if (serverJar) {
+          tryToStartServer = true
+          conditionallyStartServer()
+        } else {
+          vscode.window.showWarningMessage(`No server jar found for Scala version ${scalaVersion}`)
+        }
+      })
+  }
+
+  serverInit()
+
+  const configWatcher = vscode.workspace.createFileSystemWatcher('**/scalavista.json')
+  configWatcher.onDidChange(function () {
+    vscode.window.showInformationMessage('scalavista.json change detected - restarting language server.')
+    serverInit()
   })
 
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with  registerCommand
   // The commandId parameter must match the command field in package.json
-  const disposable = vscode.commands.registerCommand('extension.scalavistaDebugDump', function () {
-    axios.post(serverUrl() + '/log-debug', {})
+  const disposable = vscode.commands.registerCommand('extension.scalavistaKillServer', function () {
+    killServer()
   })
 
   const diagnosticCollection = vscode.languages.createDiagnosticCollection('scalavista')
