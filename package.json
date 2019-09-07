@@ -84,5 +84,8 @@
         "request": "^2.88.0",
         "semver": "^6.3.0",
         "uuid": "^3.3.3"
-    }
+    },
+    "extensionDependencies": [
+        "scala-lang.scala"
+    ]
 }
