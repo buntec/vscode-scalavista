@@ -38,31 +38,35 @@
                     "scala"
                 ],
                 "extensions": [
-                    ".scala",
-                    ".sc"
+                    ".scala"
                 ]
             }
         ],
         "configuration": {
-            "type": "object",
-            "title": "Scalavista configuration",
+            "title": "Scalavista",
             "properties": {
                 "Scalavista.defaultScalaVersion": {
                     "type": "string",
                     "default": "2.13",
-                    "description": "Scala version used in the absence of scalavista.json"
+                    "description": "The Scala (binary) version used in the absence of scalavista.json."
                 },
                 "Scalavista.diagnosticsRefreshPeriod": {
                     "type": "number",
                     "default": 1000,
-                    "description": "time in ms between refreshes of the diagnostics (increase this if your machine is slow)"
+                    "description": "The time in ms between refreshes of the diagnostics (increase this if your machine is slow)."
+                },
+                "Scalavista.debugMode": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run server in debug mode to get extensive logs."
                 }
             }
         },
         "commands": [
             {
-                "command": "extension.scalavistaKillServer",
-                "title": "Kill the currenly running server instance"
+                "command": "extension.restartServer",
+                "category": "Scalavista",
+                "title": "Restart the language server."
             }
         ]
     },

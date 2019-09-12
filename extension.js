@@ -17,6 +17,8 @@ let errorRefreshIntervalObj = null
 let checkServerIntervalObj = null
 let startServerIntervalObj = null
 let typeHoverDisposable = null
+let kindHoverDisposable = null
+let fqnHoverDisposable = null
 let docHoverDisposable = null
 let typeCompletionDisposable = null
 let scopeCompletionDisposable = null
@@ -32,18 +34,16 @@ function getExtensionPath () {
   return vscode.extensions.getExtension('buntec.vscode-scalavista').extensionPath
 }
 
-let outLogFile
-try {
-  outLogFile = fs.openSync(path.join(getExtensionPath(), 'scalavista-err.log'), 'w')
-} catch (err) {
-  outLogFile = 'ignore'
+function getWorkspaceRoot () {
+  return vscode.workspace.workspaceFolders[0].uri.fsPath
 }
 
-let errLogFile
+const logFilePath = path.join(getWorkspaceRoot(), 'scalavista-vscode.log')
+let logFile
 try {
-  errLogFile = fs.openSync(path.join(getExtensionPath(), 'scalavista-out.log'), 'w')
+  logFile = fs.openSync(logFilePath, 'w')
 } catch (err) {
-  errLogFile = 'ignore'
+  logFile = 'ignore'
 }
 
 function getRandomIntInclusive (min, max) {
@@ -52,13 +52,17 @@ function getRandomIntInclusive (min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min // The maximum is inclusive and the minimum is inclusive
 }
 
-function startServer (javaCmd, serverJar, uuid, port) {
+function startServer (javaCmd, serverJar, uuid, port, isDebug) {
   const options = {
     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath,
-    stdio: ['pipe', outLogFile, errLogFile]
+    stdio: ['pipe', logFile, logFile]
+  }
+  const flags = ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()]
+  if (isDebug) {
+    flags.push('--debug')
   }
   vscode.window.showInformationMessage(`Starting language server (port ${port}).`)
-  return spawn(javaCmd, ['-jar', serverJar, '--uuid', uuid, '--port', port.toString()], options)
+  return spawn(javaCmd, flags, options)
 }
 
 function serverJarIsOk (javaCmd, serverJar) {
@@ -177,14 +181,21 @@ function reloadOpenDocuments () {
   })
 }
 
-function completionKindFromDetail (detail) {
-  const isDef = /\bdef\b/.test(detail)
-  const isVal = /\bval\b/.test(detail)
-  const isClass = /\b(class|object)\b/.test(detail)
-  return isDef ? vscode.CompletionItemKind.Method
-    : isVal ? vscode.CompletionItemKind.Field
-      : isClass ? vscode.CompletionItemKind.Class
-        : vscode.CompletionItemKind.Text
+function completionItemKindFromSymbolKind (kind) {
+  switch (kind) {
+    case 'method':
+      return vscode.CompletionItemKind.Method
+    case 'object':
+      return vscode.CompletionItemKind.Module
+    case 'class':
+      return vscode.CompletionItemKind.Class
+    case 'trait':
+      return vscode.CompletionItemKind.Interface
+    case 'value':
+      return vscode.CompletionItemKind.Field
+    default:
+      return vscode.CompletionItemKind.Text
+  }
 }
 
 function isJavaAvailable () {
@@ -243,7 +254,42 @@ const typeHoverProvider = {
       offset
     }
     return axios.post(serverUrl() + '/ask-type-at', payload).then(response => {
-      return new vscode.Hover(response.data)
+      const text = response.data ? new vscode.MarkdownString('type:').appendCodeblock(response.data, 'scala') : ''
+      return new vscode.Hover(text)
+    })
+  }
+}
+
+const kindHoverProvider = {
+  provideHover (document, position) {
+    const filename = document.fileName
+    const fileContents = document.getText()
+    const offset = document.offsetAt(position)
+    const payload = {
+      filename,
+      fileContents,
+      offset
+    }
+    return axios.post(serverUrl() + '/ask-kind-at', payload).then(response => {
+      const text = response.data ? `kind: ${response.data}` : ''
+      return new vscode.Hover(text)
+    })
+  }
+}
+
+const fullyQualifiedNameHoverProvider = {
+  provideHover (document, position) {
+    const filename = document.fileName
+    const fileContents = document.getText()
+    const offset = document.offsetAt(position)
+    const payload = {
+      filename,
+      fileContents,
+      offset
+    }
+    return axios.post(serverUrl() + '/ask-fully-qualified-name-at', payload).then(response => {
+      const text = response.data ? new vscode.MarkdownString('fully qualified name:').appendCodeblock(response.data, 'scala') : ''
+      return new vscode.Hover(text)
     })
   }
 }
@@ -259,13 +305,13 @@ const docHoverProvider = {
       offset
     }
     return axios.post(serverUrl() + '/ask-doc-at', payload).then(response => {
-      return new vscode.Hover(response.data)
+      const text = response.data ? new vscode.MarkdownString().appendCodeblock(response.data) : ''
+      return new vscode.Hover(text)
     })
   }
 }
 
 const typeCompletionProvider = {
-
   provideCompletionItems (document, position) {
     const filename = document.fileName
     const fileContents = document.getText()
@@ -279,7 +325,7 @@ const typeCompletionProvider = {
       const completionItems = response.data.map(comp => {
         const label = comp[0]
         const detail = comp[1]
-        const kind = completionKindFromDetail(detail)
+        const kind = completionItemKindFromSymbolKind(comp[2])
         const item = new vscode.CompletionItem(label, kind)
         item.detail = detail
         return item
@@ -290,7 +336,6 @@ const typeCompletionProvider = {
 }
 
 const scopeCompletionProvider = {
-
   provideCompletionItems (document, position) {
     const filename = document.fileName
     const fileContents = document.getText()
@@ -304,7 +349,7 @@ const scopeCompletionProvider = {
       const completionItems = response.data.map(comp => {
         const label = comp[0]
         const detail = comp[1]
-        const kind = completionKindFromDetail(detail)
+        const kind = completionItemKindFromSymbolKind(comp[2])
         const item = new vscode.CompletionItem(label, kind)
         item.detail = detail
         return item
@@ -330,6 +375,7 @@ function activate (context) {
 
   const refreshPeriod = vscode.workspace.getConfiguration('Scalavista').get('diagnosticsRefreshPeriod')
   const defaultScalaVersion = vscode.workspace.getConfiguration('Scalavista').get('defaultScalaVersion')
+  const isDebugMode = vscode.workspace.getConfiguration('Scalavista').get('debugMode')
 
   function setScalaVersion () {
     const scalavistaJson = parseScalavistaJson()
@@ -358,8 +404,12 @@ function activate (context) {
     axios.get(serverUrl() + '/alive')
       .then(response => {
         if (response.data === uuid) {
-          statusBarItem.text = `Scala language server online (Scala ${scalaVersion}, port ${port})`
-          statusBarItem.tooltip = `Serving at ${serverUrl()}`
+          axios.get(serverUrl() + '/version')
+            .then(response => {
+              const version = response.data
+              statusBarItem.text = `Scalavista server ${version} online (Scala ${scalaVersion}, port ${port})`
+              statusBarItem.tooltip = `Serving at ${serverUrl()}`
+            }).catch(() => {})
           setAlive(function () {
             vscode.window.showInformationMessage('Scala language server is now live.')
             reloadOpenDocuments()
@@ -423,12 +473,21 @@ function activate (context) {
   }
 
   function killServer () {
-    if (serverProcess !== null) {
-      try {
-        serverProcess.stdin.write('x') // any input will shut down the server
-        serverProcess.stdin.end()
-      } catch (err) { }
-    }
+    return new Promise((resolve) => {
+      if (serverProcess !== null) {
+        try {
+          serverProcess.removeAllListeners('exit') // don't want to notify user when we deliberately shut down the server
+          serverProcess.on('exit', () => {
+            resolve()
+          })
+          serverProcess.stdin.end('x') // any input will shut down the server
+        } catch (err) {
+          resolve()
+        }
+      } else {
+        resolve()
+      }
+    })
   }
 
   function conditionallyStartServer () {
@@ -436,8 +495,7 @@ function activate (context) {
       tryToStartServer = false
       if (serverProcess !== null) {
         try {
-          serverProcess.stdin.write('x') // any input will shut down the server
-          serverProcess.stdin.end()
+          serverProcess.stdin.end('x') // any input will shut down the server
         } catch (err) { }
       }
       isJavaAvailable()
@@ -445,22 +503,28 @@ function activate (context) {
           serverJarIsOk(javaCmd, serverJar)
             .then(() => {
               port = getRandomIntInclusive(portMin, portMax)
-              serverProcess = startServer(javaCmd, serverJar, uuid, port)
+              serverProcess = startServer(javaCmd, serverJar, uuid, port, isDebugMode)
               serverProcess.on('exit', () => {
-                tryToStartServer = true
-                vscode.window.showWarningMessage('Language server process exited. Will try to restart...')
+                return vscode.window.showErrorMessage('Language server process exited.', 'Restart', 'Show logs', 'Dismiss').then(
+                  (answer) => {
+                    if (answer === 'Restart') {
+                      tryToStartServer = true
+                    } else if (answer === 'Show logs') {
+                      return vscode.window.showTextDocument(vscode.Uri.file(logFilePath))
+                    }
+                  }
+                )
               })
               serverProcess.on('error', () => {
-                tryToStartServer = true
-                vscode.window.showWarningMessage('Error when spawning server process.')
+                return vscode.window.showErrorMessage('Error when spawning server process', 'Show log')
               })
             }).catch((err) => {
-              vscode.window.showErrorMessage(`${err}`, 'Download latest jar from GitHub').then((answer) => {
+              return vscode.window.showErrorMessage(`${err}`, 'Download latest jar from GitHub').then((answer) => {
                 if (answer) {
-                  return downloadLatestServerJar(scalaVersion)
+                  return downloadLatestServerJar(scalaVersion).then(() => {
+                    tryToStartServer = true
+                  })
                 }
-              }).finally(() => {
-                tryToStartServer = true
               })
             })
         }).catch(() => {})
@@ -470,8 +534,7 @@ function activate (context) {
   function serverInit () {
     setScalaVersion()
     tryToStartServer = false
-    killServer()
-    isJavaAvailable().catch(() => {
+    killServer().then(() => isJavaAvailable()).catch(() => {
       vscode.window.showWarningMessage('Unable to find java - make sure it is on your PATH or JAVA_HOME is defined.')
     }
     ).then(() => {
@@ -500,8 +563,10 @@ function activate (context) {
   // The command has been defined in the package.json file
   // Now provide the implementation of the command with  registerCommand
   // The commandId parameter must match the command field in package.json
-  const disposable = vscode.commands.registerCommand('extension.scalavistaKillServer', function () {
-    killServer()
+  const disposable = vscode.commands.registerCommand('extension.restartServer', function () {
+    killServer().then(() => {
+      tryToStartServer = true
+    })
   })
 
   const diagnosticCollection = vscode.languages.createDiagnosticCollection('scalavista')
@@ -509,6 +574,10 @@ function activate (context) {
   definitionProviderDisposable = vscode.languages.registerDefinitionProvider('scala', definitionProvider)
 
   typeHoverDisposable = vscode.languages.registerHoverProvider('scala', typeHoverProvider)
+
+  kindHoverDisposable = vscode.languages.registerHoverProvider('scala', kindHoverProvider)
+
+  fqnHoverDisposable = vscode.languages.registerHoverProvider('scala', fullyQualifiedNameHoverProvider)
 
   docHoverDisposable = vscode.languages.registerHoverProvider('scala', docHoverProvider)
 
@@ -586,6 +655,8 @@ exports.activate = activate
 // this method is called when your extension is deactivated
 function deactivate () {
   typeHoverDisposable.dispose()
+  kindHoverDisposable.dispose()
+  fqnHoverDisposable.dispose()
   docHoverDisposable.dispose()
   typeCompletionDisposable.dispose()
   scopeCompletionDisposable.dispose()
