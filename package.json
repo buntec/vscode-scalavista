@@ -1,7 +1,7 @@
 {
     "name": "vscode-scalavista",
     "displayName": "Scalavista",
-    "description": "IDE-like features for Scala - type/scaladoc on hover, auto-completion, goto definition, errors/warnings as you type",
+    "description": "Lightweight, easy-to-use, feature-rich extension for the Scala language: auto-completion, type on hover, jump to definition, linting.",
     "categories": [
         "Programming Languages",
         "Linters",
